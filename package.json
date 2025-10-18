@@ -1,0 +1,27 @@
+{
+  "name": "discord-selfbot-roleplay",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc"
+  },
+  "author": "",
+  "license": "MIT",
+  "description": "A Discord selfbot for roleplaying using OpenAI Agents sdk.",
+  "dependencies": {
+    "@openai/agents": "^0.1.10",
+    "discord.js-selfbot-v13": "github:thedtvn/discord.js-selfbot-v13",
+    "dotenv": "^17.2.3",
+    "mustache": "^4.2.0",
+    "openai": "^5.20.2",
+    "tsx": "^4.20.6",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/mustache": "^4.2.6",
+    "@types/node": "^24.8.0",
+    "typescript": "^5.9.3"
+  }
+}

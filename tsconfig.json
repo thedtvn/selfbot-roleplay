@@ -1,0 +1,40 @@
+{
+    "compilerOptions": {
+        // Type Checking
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "exactOptionalPropertyTypes": false,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitOverride": true,
+        "noImplicitReturns": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "strict": true,
+        "useUnknownInCatchVariables": true,
+        "module": "NodeNext",
+        "moduleResolution": "nodenext",
+        "resolveJsonModule": true,
+        "declaration": false,
+        "importHelpers": true,
+        "inlineSources": false,
+        "noEmitHelpers": true,
+        "outDir": "dist",
+        "preserveConstEnums": true,
+        "removeComments": false,
+        "sourceMap": false,
+        "esModuleInterop": true,
+        "forceConsistentCasingInFileNames": true,
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true,
+        "lib": [
+            "ESNext",
+            "ES2021",
+            "DOM"
+        ],
+        "target": "esnext",
+        "useDefineForClassFields": true,
+        "pretty": false,
+        "skipLibCheck": true,
+        "skipDefaultLibCheck": true
+    }
+}
