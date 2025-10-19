@@ -110,9 +110,9 @@ node .
 
 Edit `configs/instructions.md` to customize the bot's personality, background, and behavior. The template uses Mustache syntax for dynamic variables:
 
-- `{{ user_id }}` - Current user's ID
-- `{{ username }}` - User's username
-- `{{ user_global_name }}` - User's display name
+- `{{ user_id }}` - Current Account ID
+- `{{ username }}` - Current Account username
+- `{{ user_global_name }}` - Current Account display name
 - `{{ current_time }}` - Current timestamp
 - `{{ current_guild }}` - Current server name
 - `{{ current_channel }}` - Current channel name
