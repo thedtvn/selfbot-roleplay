@@ -1,5 +1,5 @@
 import { Agent, AgentInputItem, FunctionTool, setDefaultOpenAIClient, setOpenAIAPI, Runner } from "@openai/agents";
-import { Client, Message } from "discord.js-selfbot-v13";
+import { Client, Message, RichPresence } from "discord.js-selfbot-v13";
 import AgentContext from "./AgentContext";
 import fs from "node:fs";
 import path from "node:path";
@@ -16,6 +16,12 @@ export default class BotClient extends Client {
     PROVIDER: string = process.env.PROVIDER || 'openai';
 
     RUNNER: Runner = new Runner();
+
+    ALLOWED_USERS: string[] | null = process.env.ALLOWED_USERS ? process.env.ALLOWED_USERS.split(',') : null;
+
+    ALLOWED_GUILDS: string[] | null = process.env.ALLOWED_GUILDS ? process.env.ALLOWED_GUILDS.split(',') : null;
+
+    ALLOWED_CHANNELS: string[] | null = process.env.ALLOWED_CHANNELS ? process.env.ALLOWED_CHANNELS.split(',') : null;
 
     constructor() {
         super();
@@ -77,22 +83,40 @@ export default class BotClient extends Client {
         console.log(`Loaded ${toolLoaded}/${toolFiles.length} tools.`);
     }
 
+    isSendAllowed(message: Message): boolean {
+        // Piority: Guild > Channel > User
+        // If any of the ALLOWED lists is set, only allow those
+        if (this.ALLOWED_GUILDS && message.guild && this.ALLOWED_GUILDS.includes(message.guild.id)) {
+            return true;
+        } else if (this.ALLOWED_CHANNELS && this.ALLOWED_CHANNELS.includes(message.channel.id)) {
+            return true;
+        } else if (this.ALLOWED_USERS && this.ALLOWED_USERS.includes(message.author.id)) {
+            return true;
+        }
+        // If none of the lists are set, allow all
+        return (!this.ALLOWED_GUILDS && !this.ALLOWED_CHANNELS && !this.ALLOWED_USERS);
+    }
+
     initListeners() {
         this.on("ready", () => {
             console.log(`Logged in as ${this.user?.tag}`);
             this.user?.setStatus('online');
             // You can customize the activity as you like
-            this.user?.setActivity({
-                name: "Role Playing with AI",
-                type: 'STREAMING',
-                state: "This is a selfbot Role Playing",    
-                url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            const richPresence = new RichPresence(this);
+            richPresence.setName("Role Playing with AI");
+            richPresence.setState("This is a selfbot Role Playing");
+            richPresence.setType("WATCHING");
+            richPresence.setButtons({
+                name: "GitHub Repository",
+                url: "https://github.com/thedtvn/selfbot-roleplay"
             });
+            this.user?.setActivity(richPresence);
         });
 
         this.on("messageCreate", async (message) => {
             if (message.author.id === this.user?.id) return; // Prevent from doom looping
-            if (!message.mentions.has(this.user!) && message.channel.type !== 'DM') return; // Only respond if mentioned or in DM
+            if (!message.mentions.has(this.user!) && message.channel.type !== 'DM') return; // Only respond if mentioned if in DMS will respond always
+            if (!this.isSendAllowed(message)) return; // Check if allowed to respond in this context
             await message.channel.sendTyping();
             const channelHistory = await message.channel.messages.fetch({ limit: 10, before: message.id });
             const messages = Array.from(channelHistory.values()).reverse(); // Reverse to get chronological order
