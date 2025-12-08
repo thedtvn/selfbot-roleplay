@@ -220,7 +220,7 @@ export default class BotClient extends Client {
             username: this.user.username,
             user_global_name: this.user.globalName || this.user.tag,
             user_id: this.user.id,
-            current_guild: message.guild ? `${message.guild.name} (ID: ${message.guild.id})` : "DM",
+            current_guild: message.guild ? `${message.guild.name} (ID: ${message.guild.id})` : message.channel.type === 'DM' ? "DM" : "Group DM",
             current_channel: message.channel.type === 'DM' ? "DM" : `${message.channel.name} (ID: ${message.channel.id})`,
             current_time: new Date().toISOString() // use to add relevant time info like what day is today or current time
         });
