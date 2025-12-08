@@ -103,9 +103,10 @@ export default class BotClient extends Client {
             this.user?.setStatus('online');
             // You can customize the activity as you like
             const richPresence = new RichPresence(this);
+            richPresence.setApplicationId("782685898163617802"); // VSCord App ID for template
             richPresence.setName("Role Playing with AI");
             richPresence.setState("This is a selfbot Role Playing");
-            richPresence.setType("WATCHING");
+            richPresence.setType("PLAYING");
             richPresence.setButtons({
                 name: "GitHub Repository",
                 url: "https://github.com/thedtvn/selfbot-roleplay"
