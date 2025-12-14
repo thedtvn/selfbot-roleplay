@@ -23,6 +23,8 @@ export default class BotClient extends Client {
 
     ALLOWED_CHANNELS: string[] | null = process.env.ALLOWED_CHANNELS ? process.env.ALLOWED_CHANNELS.split(',') : null;
 
+    DISABLE_STATUS: boolean = process.env.DISABLE_STATUS === 'true';
+
     constructor() {
         super();
         this.loadModel();
@@ -100,6 +102,7 @@ export default class BotClient extends Client {
     initListeners() {
         this.on("ready", () => {
             console.log(`Logged in as ${this.user?.tag}`);
+            if (this.DISABLE_STATUS) return; // Skip setting status if disabled
             this.user?.setStatus('online');
             // You can customize the activity as you like
             const richPresence = new RichPresence(this);
