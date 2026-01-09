@@ -42,9 +42,7 @@ export default class BotClient extends Client {
             setDefaultOpenAIClient(azureClient);
         } else {
             // Use dynamic import to get the bundled OpenAI client
-            const openAIClient = new OpenAI({
-                apiKey: process.env.OPENAI_API_KEY
-            }) as OpenAI;
+            const openAIClient = new OpenAI();
             setDefaultOpenAIClient(openAIClient);
         }
         setOpenAIAPI('chat_completions')
