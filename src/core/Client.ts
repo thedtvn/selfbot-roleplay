@@ -137,10 +137,10 @@ export default class BotClient extends Client {
                 const isMe = msg.author === this.user;
                 if (isMe) {
                     return {
-                        type: 'message',
-                        role: 'assistant',
-                        status: 'completed',
-                        content: [{ type: 'output_text', text: msg.content }]
+                        type: 'message' as const,
+                        role: 'assistant' as const,
+                        status: 'completed' as const,
+                        content: [{ type: 'output_text' as const, text: msg.content }]
                     };
                 } else {
 
@@ -195,15 +195,15 @@ export default class BotClient extends Client {
                         .map(([key, value]) => `${key}: ${value}`)
                         .join('\n');
                     return {
-                        type: 'message',
-                        role: 'user',
+                        type: 'message' as const,
+                        role: 'user' as const,
                         content: [
-                            { type: 'input_text', text: msg.content },
-                            { type: 'input_text', text: `Message context:\n${renderedMessageInfo}\nUser context:\n${renderedContent}` },
+                            { type: 'input_text' as const, text: msg.content },
+                            { type: 'input_text' as const, text: `Message context:\n${renderedMessageInfo}\nUser context:\n${renderedContent}` },
                             ...attachments.map(att => {
                                 if (att.contentType && /^image\/(png|jpe?g)$/i.test(att.contentType)) {
                                     return { 
-                                        type: 'input_image',
+                                        type: 'input_image' as const,
                                         image: att.url,
                                         providerData: { 
                                             fileName: att.name || 'unknown',
@@ -212,7 +212,7 @@ export default class BotClient extends Client {
                                     };
                                 } else {
                                     return { 
-                                        type: 'input_file',
+                                        type: 'input_file' as const,
                                         file: {
                                             url: att.url
                                         },
