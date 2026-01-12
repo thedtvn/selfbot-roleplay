@@ -1,4 +1,4 @@
-import { Agent, AgentInputItem, FunctionTool, setDefaultOpenAIClient, setOpenAIAPI, Runner } from "@openai/agents";
+import { Agent, AgentInputItem, FunctionTool, setDefaultOpenAIClient, setOpenAIAPI, Runner, setTracingDisabled } from "@openai/agents";
 import { Client, Message, RichPresence } from "discord.js-selfbot-v13";
 import AgentContext from "./AgentContext";
 import fs from "node:fs";
@@ -31,6 +31,7 @@ export default class BotClient extends Client {
     }
 
     loadModel() {
+        setTracingDisabled(true);
         if (this.PROVIDER === 'azure') {
             // Use dynamic import to get the bundled OpenAI client
             const azureClient = new AzureOpenAI({
@@ -40,12 +41,12 @@ export default class BotClient extends Client {
                 apiVersion: process.env.AZURE_OPENAI_API_VERSION
             }) as OpenAI;
             setDefaultOpenAIClient(azureClient);
+            setOpenAIAPI('chat_completions')
         } else {
             // Use dynamic import to get the bundled OpenAI client
             const openAIClient = new OpenAI();
             setDefaultOpenAIClient(openAIClient);
         }
-        setOpenAIAPI('chat_completions')
     }
 
     async loadTools() {
@@ -57,25 +58,25 @@ export default class BotClient extends Client {
             const filePath = path.join(toolsDir, file);
             const fileURL = pathToFileURL(filePath).href;
             const toolModule = await import(fileURL);
-            
+
             // Handle ES module exports - check for .default property
             let ToolClass = toolModule.default;
-            
+
             // If default is an object with a default property (double-wrapped), unwrap it
             if (ToolClass && typeof ToolClass === 'object' && 'default' in ToolClass) {
                 ToolClass = ToolClass.default;
             }
-            
+
             // Fallback to the module itself if no default export
             if (!ToolClass) {
                 ToolClass = toolModule;
             }
-            
+
             if (typeof ToolClass !== 'function') {
                 console.warn(`Skipping ${file}: exported module is not a constructor. Module keys:`, Object.keys(toolModule));
                 continue;
             }
-            
+
             const toolInstance: FunctionTool<AgentContext, any, string> = new ToolClass().toOpenAITool();
             this.TOOLS.push(toolInstance);
             toolLoaded++;
@@ -125,7 +126,7 @@ export default class BotClient extends Client {
             messages.push(message); // include the current message
             const response = await this.getResponse(messages);
             if (!response) return;
-            message.reply(response).catch(() => {});
+            message.reply(response).catch(() => { });
         });
     }
 
@@ -144,7 +145,7 @@ export default class BotClient extends Client {
                 } else {
 
                     const userInfomation: Record<string, any> = {
-                        username: msg.author.username,  
+                        username: msg.author.username,
                         displayName: msg.author.globalName || msg.author.tag,
                         user_id: msg.author.id,
                         nickname: msg.member?.nickname || "N/A",
@@ -157,7 +158,7 @@ export default class BotClient extends Client {
                         const activities = memberPresence.activities.map(activity => {
                             return `Type: ${activity.type}\nName: ${activity.name}\nDetails: ${activity.details || 'N/A'}\nState: ${activity.state || 'N/A'}`;
                         }).join('\n\n');
-                        userInfomation['Activities'] = "\n"+activities;
+                        userInfomation['Activities'] = "\n" + activities;
                     }
 
                     const renderedContent = Object.entries(userInfomation)
@@ -178,7 +179,7 @@ export default class BotClient extends Client {
                             content: messageReference?.content || "",
                         };
                     }
-                    
+
                     const messageInfomation: Record<string, any> = {
                         message_id: msg.id,
                     };
@@ -187,6 +188,9 @@ export default class BotClient extends Client {
                             messageInfomation[`reply_to_${key}`] = value;
                         });
                     }
+
+                    const attachments = Array.from(msg.attachments.values());
+
                     const renderedMessageInfo = Object.entries(messageInfomation)
                         .map(([key, value]) => `${key}: ${value}`)
                         .join('\n');
@@ -195,9 +199,32 @@ export default class BotClient extends Client {
                         role: 'user',
                         content: [
                             { type: 'input_text', text: msg.content },
-                            { type: 'input_text', text: `Message context:\n${renderedMessageInfo}\nUser context:\n${renderedContent}` }
+                            { type: 'input_text', text: `Message context:\n${renderedMessageInfo}\nUser context:\n${renderedContent}` },
+                            ...attachments.map(att => {
+                                if (att.contentType && /^image\/(png|jpe?g)$/i.test(att.contentType)) {
+                                    return { 
+                                        type: 'input_image',
+                                        image: att.url,
+                                        providerData: { 
+                                            fileName: att.name || 'unknown',
+                                            description: att.description || 'N/A'
+                                        }
+                                    };
+                                } else {
+                                    return { 
+                                        type: 'input_file',
+                                        file: {
+                                            url: att.url
+                                        },
+                                        providerData: {
+                                            fileName: att.name || 'unknown',
+                                            description: att.description || 'N/A'
+                                        }
+                                    };
+                                }
+                            })
                         ]
-                    };
+                    };    
                 }
             })
         );
@@ -209,7 +236,7 @@ export default class BotClient extends Client {
         const response = await this.RUNNER.run(
             agent,
             formattedMessages,
-            { 
+            {
                 context: new AgentContext(this, messages[0])
             }
         );

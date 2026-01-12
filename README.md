@@ -25,6 +25,8 @@ The AI has access to the following information to generate context-aware respons
         - Author activity (playing a game, streaming, etc.)
     - Message context
         - Current message id
+        - Message content
+        - Message attachments (file names and descriptions and content if image or supported file type)
         - Reply context (if the message is a reply)
             - Reply to message ID
             - Reply to message content of the replied message
