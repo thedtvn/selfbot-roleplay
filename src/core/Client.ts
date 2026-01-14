@@ -128,9 +128,8 @@ export default class BotClient extends Client {
             if (!this.isSendAllowed(message)) return; // Check if allowed to respond in this context
             const stopTyping = this.TYPING_MANAGER.startTyping(message.channel); // Start typing indicator task
             const channelHistory = await this.MESSAGE_MANAGER.getMessages(message, 10);
-            const messages = Array.from(channelHistory.values()).reverse(); // Reverse to get chronological order
-            messages.push(message); // include the current message
-            const response = await this.getResponse(messages);
+            channelHistory.push(message); // include the current message
+            const response = await this.getResponse(channelHistory);
             if (!response) return;
             stopTyping(); // Stop typing indicator task
             message.reply(response).catch((err) => {

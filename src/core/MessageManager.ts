@@ -9,44 +9,77 @@ export default class MessageManager {
 
     public client: BotClient;
     private messageCache: Collection<string, Message[]> = new Collection();
+    private messageIds: Collection<string, Set<string>> = new Collection();
 
     constructor(client: BotClient) {
         this.client = client;
-        this.client.on('messageCreate', (message: Message) => {
-            this.addMessage(message);
-        });
-        setInterval(() => {
-            this.clearCache();
-        }, MessageManager.CACHE_CLEAR_INTERVAL_MS);
+        this.client.on('messageCreate', this.addMessage.bind(this));
+        setInterval(this.clearCache.bind(this), MessageManager.CACHE_CLEAR_INTERVAL_MS);
     }
 
     public addMessage(message: Message): void {
-        let channelMessages = this.messageCache.get(message.channel.id) || [];
-        if (channelMessages.find(msg => msg.id === message.id)) return; // Avoid duplicates
+        const channelId = message.channel.id;
+        const channelMessages = this.messageCache.get(channelId) || [];
+        const messageIdSet = this.messageIds.get(channelId) || new Set<string>();
+
+        if (messageIdSet.has(message.id)) return;
+
         channelMessages.push(message);
+        messageIdSet.add(message.id);
+
         if (channelMessages.length > MessageManager.MAX_MESSAGES_PER_CHANNEL) {
-            channelMessages = channelMessages.sort((a, b) => b.createdTimestamp - a.createdTimestamp).slice(0, MessageManager.MAX_MESSAGES_PER_CHANNEL);
+            const removed = channelMessages.shift()!;
+            messageIdSet.delete(removed.id);
         }
-        this.messageCache.set(message.channel.id, channelMessages);
+
+        this.messageCache.set(channelId, channelMessages);
+        this.messageIds.set(channelId, messageIdSet);
     }
 
-    public async fetchMessages(message: Message, limit: number = MessageManager.DEFAULT_MESSAGE_LIMIT): Promise<Message[]> {
-        const messages = await message.channel.messages.fetch({ limit: 10, before: message.id });
-        messages.forEach(msg => this.addMessage(msg));
-        return Array.from(messages.filter(msg => msg.createdTimestamp < message.createdTimestamp).values()).slice(-limit);
+    private async fetchMessages(message: Message, limit: number): Promise<Message[]> {
+        const messages = await message.channel.messages.fetch({ limit, before: message.id });
+        const result: Message[] = [];
+        
+        for (const msg of messages.values()) {
+            this.addMessage(msg);
+            if (msg.createdTimestamp < message.createdTimestamp) {
+                result.push(msg);
+            }
+        }
+        
+        return result.reverse();
     }
 
-    public async getMessages(message: Message, limit: number = MessageManager.DEFAULT_MESSAGE_LIMIT): Promise<Message<boolean>[]> {
+    public async getMessages(message: Message, limit: number = MessageManager.DEFAULT_MESSAGE_LIMIT): Promise<Message[]> {
         const channelMessages = this.messageCache.get(message.channel.id) || [];
-        const messages = channelMessages.filter(msg => msg.createdTimestamp < message.createdTimestamp);
-        const messageSlice = messages.slice(-limit);
-        const fetchedMessages = messageSlice.length < limit ? await this.fetchMessages(message, limit - messageSlice.length) : messageSlice;
-        return fetchedMessages;
+        
+        const cachedMessages = channelMessages
+            .filter(msg => msg.createdTimestamp < message.createdTimestamp)
+            .slice(-limit);
+
+        if (cachedMessages.length < limit) {
+            // Piororitize fetching more messages if cache is insufficient
+            const fetchedMessages = await this.fetchMessages(message, limit);
+            return fetchedMessages.filter(msg => msg != message);
+        }
+
+        return cachedMessages.filter(msg => msg != message);
     }
 
-    public clearCache(): void {
-        this.messageCache = this.messageCache.filter((value, _) => {
-            return value[value.length - 1].createdTimestamp + MessageManager.MESSAGE_AGE_LIMIT_MS > Date.now();
-        });
+    private clearCache(): void {
+        const now = Date.now();
+        const channelsToDelete: string[] = [];
+
+        for (const [channelId, messages] of this.messageCache.entries()) {
+            if (messages.length === 0 || 
+                messages[messages.length - 1].createdTimestamp + MessageManager.MESSAGE_AGE_LIMIT_MS < now) {
+                channelsToDelete.push(channelId);
+            }
+        }
+
+        for (const channelId of channelsToDelete) {
+            this.messageCache.delete(channelId);
+            this.messageIds.delete(channelId);
+        }
     }
 }
