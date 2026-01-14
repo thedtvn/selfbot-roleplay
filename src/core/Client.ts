@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import Mustache from "mustache";
 import { OpenAI, AzureOpenAI } from "openai";
 import TypingManager from "./TypingManager";
+import MessageManager from "./MessageManager";
 
 export default class BotClient extends Client {
 
@@ -27,6 +28,8 @@ export default class BotClient extends Client {
     DISABLE_STATUS: boolean = process.env.DISABLE_STATUS === 'true';
 
     TYPING_MANAGER = new TypingManager(this);
+
+    MESSAGE_MANAGER = new MessageManager(this);
 
     constructor() {
         super();
@@ -124,7 +127,7 @@ export default class BotClient extends Client {
             if (!message.mentions.has(this.user!) && message.channel.type !== 'DM') return; // Only respond if mentioned if in DMS will respond always
             if (!this.isSendAllowed(message)) return; // Check if allowed to respond in this context
             const stopTyping = this.TYPING_MANAGER.startTyping(message.channel); // Start typing indicator task
-            const channelHistory = await message.channel.messages.fetch({ limit: 10, before: message.id });
+            const channelHistory = await this.MESSAGE_MANAGER.getMessages(message, 10);
             const messages = Array.from(channelHistory.values()).reverse(); // Reverse to get chronological order
             messages.push(message); // include the current message
             const response = await this.getResponse(messages);
@@ -207,7 +210,7 @@ export default class BotClient extends Client {
                         role: 'user' as const,
                         content: [
                             { type: 'input_text' as const, text: msg.content },
-                            { type: 'input_text' as const, text: `Message context:\n${renderedMessageInfo}\nUser context:\n${renderedContent}` },
+                            { type: 'input_text' as const, text: `Message context:\n${renderedMessageInfo}\n\nUser context:\n${renderedContent}` },
                             ...attachments.map(att => {
                                 if (att.contentType && /^image\/(png|jpe?g)$/i.test(att.contentType)) {
                                     return { 
@@ -220,14 +223,8 @@ export default class BotClient extends Client {
                                     };
                                 } else {
                                     return { 
-                                        type: 'input_file' as const,
-                                        file: {
-                                            url: att.url
-                                        },
-                                        providerData: {
-                                            fileName: att.name || 'unknown',
-                                            description: att.description || 'N/A'
-                                        }
+                                        type: 'input_text' as const,
+                                        text: `Attachment Name: ${att.name || 'unknown'}\nDescription: ${att.description || 'N/A'}\nContent Type: ${att.contentType || 'N/A'}\nUnsupported attachment type.`
                                     };
                                 }
                             })
