@@ -6,6 +6,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import Mustache from "mustache";
 import { OpenAI, AzureOpenAI } from "openai";
+import TypingManager from "./TypingManager";
 
 export default class BotClient extends Client {
 
@@ -24,6 +25,8 @@ export default class BotClient extends Client {
     ALLOWED_CHANNELS: string[] | null = process.env.ALLOWED_CHANNELS ? process.env.ALLOWED_CHANNELS.split(',') : null;
 
     DISABLE_STATUS: boolean = process.env.DISABLE_STATUS === 'true';
+
+    TYPING_MANAGER = new TypingManager(this);
 
     constructor() {
         super();
@@ -120,13 +123,16 @@ export default class BotClient extends Client {
             if (message.author.id === this.user?.id) return; // Prevent from doom looping
             if (!message.mentions.has(this.user!) && message.channel.type !== 'DM') return; // Only respond if mentioned if in DMS will respond always
             if (!this.isSendAllowed(message)) return; // Check if allowed to respond in this context
-            await message.channel.sendTyping();
+            const stopTyping = this.TYPING_MANAGER.startTyping(message.channel); // Start typing indicator task
             const channelHistory = await message.channel.messages.fetch({ limit: 10, before: message.id });
             const messages = Array.from(channelHistory.values()).reverse(); // Reverse to get chronological order
             messages.push(message); // include the current message
             const response = await this.getResponse(messages);
             if (!response) return;
-            message.reply(response).catch(() => { });
+            stopTyping(); // Stop typing indicator task
+            message.reply(response).catch(() => { }).finally(() => 
+                this.TYPING_MANAGER.sendComplete(message.channel) // Restart typing indicator if there are other tasks
+            );
         });
     }
 
