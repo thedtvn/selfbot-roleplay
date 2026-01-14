@@ -130,7 +130,9 @@ export default class BotClient extends Client {
             const response = await this.getResponse(messages);
             if (!response) return;
             stopTyping(); // Stop typing indicator task
-            message.reply(response).catch(() => { }).finally(() => 
+            message.reply(response).catch((err) => {
+                console.error("Failed to send reply:", err);
+             }).finally(() => 
                 this.TYPING_MANAGER.sendComplete(message.channel) // Restart typing indicator if there are other tasks
             );
         });
